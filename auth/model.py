@@ -41,7 +41,8 @@ class UserSchema(BaseModel):
                           description='UserName must be unique. and should be start with letter and contain only letters, numbers, and underscores.',)
 
     Email:EmailStr=Field(...,
-                         title='Email')
+                         title='Email',
+                         )
 
     FirstName:str=Field(...,
                         regex=r'^[a-zA-Z]+$',
@@ -58,7 +59,7 @@ class UserSchema(BaseModel):
     Password:str=Field(...,
                        title='Password')
     Birthdate:str=Field(...,
-                        regex=r'/^[1-4]\d{3}\/((0[1-6]\/((3[0-1])|([1-2][0-9])|(0[1-9])))|((1[0-2]|(0[7-9]))\/(30|31|([1-2][0-9])|(0[1-9]))))$/',
+                        regex=r'^[1-4]\d{3}\/((0[1-6]\/((3[0-1])|([1-2][0-9])|(0[1-9])))|((1[0-2]|(0[7-9]))\/(30|31|([1-2][0-9])|(0[1-9]))))$',
                         description='Birthdate in format YYYY/MM/DD')
 
     Remember_me:bool=Field( False,

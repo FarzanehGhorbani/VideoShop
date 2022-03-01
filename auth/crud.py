@@ -4,6 +4,7 @@ from .db_mongodb import db
 from .model import UserSchema,UserLoginSchema
 from fastapi.encoders import jsonable_encoder
 from datetime import datetime
+from fastapi import HTTPException
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -39,9 +40,11 @@ async def get_user(email:str)->any:
                 email (str): A String
             
             Returns:
-                any: A user if exist, None otherwise
+                any: A user if exist, False otherwise
     '''
-    return await db.find_one({'Email':email})
+    if (user:=await db.find_one({'Email':email})) is not None:
+        return user
+    return False
 
 
 async def update_verfied_user(email:str)->None:
@@ -85,7 +88,7 @@ async def create_user(user:UserSchema)->None:
     user_data=jsonable_encoder(user)
     
     if await get_user(user_data['Email']):
-        raise ValueError('User already exists')
+        raise HTTPException(status_code=409, detail="Email alreday exist")
     else:
         user_data['Password']=get_password_hash(user_data['Password'])
         await db.insert_one(user_data)
@@ -93,7 +96,7 @@ async def create_user(user:UserSchema)->None:
 
 
 async def authenticate_user(user:UserLoginSchema)->UserSchema:
-    '''Authenticate user login time.if user not exist or password not match or not Verify, raise ValueError.
+    '''Authenticate user login time.if user not exist or password not match or not Verify, raise httpexception.
     
             Parameters:
                 user (UserLoginSchema): A UserLoginSchema
@@ -104,15 +107,15 @@ async def authenticate_user(user:UserLoginSchema)->UserSchema:
     # get user by email if dose not exist, raise ValueError
     user_data=await get_user(user.Email)
     if not user_data:
-        raise ValueError('User does not exist')
+        raise HTTPException(status_code=403, detail="Email not found")
     
     # if not verify password, raise ValueError
     if not user_data['Verified']:
-        raise ValueError('User not verified')
+        raise HTTPException(status_code=403, detail="This email not verified")
 
     # if not match password, raise ValueError
     if not verify_password(user.Password,user_data['Password']):
-        raise ValueError('Invalid password')
+        raise HTTPException(status_code=401, detail="Passwords don't match")
 
     # update updated_date login time
     await update_login_user(user.Email)

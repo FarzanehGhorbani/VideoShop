@@ -4,6 +4,7 @@ from fastapi import APIRouter
 from .crud import *
 from .publisher import publisher
 from .jwt_handler import signJWT,decodeJWT
+from pydantic import ValidationError
 # Create a router 
 router = APIRouter(
     prefix="/auth",
@@ -18,18 +19,15 @@ async def signup(user:UserSchema):
                     UserSchema is a class that inherits from BaseModel.
 
             Returns:
-                user: UserSchema if user is created successfully else return error message.
+                user: UserSchema if user is created successfully else raise error message.
 
     '''
-    try:
-        await create_user(user)
-        await publisher(user.dict(include={'UserName':True,'Email':True,'FirstName':True,'LastName':True}),'verify','/auth/signup/verified/')
-        print(signJWT(user.Email))
-        return user
-    except ValueError as e:
-        return {'error':str(e)+' . You should login'}
-    except Exception as e:
-        return {'error':str(e)}
+    print('-----------------------------')
+    await create_user(user)
+    await publisher(user.dict(include={'UserName':True,'Email':True,'FirstName':True,'LastName':True}),'verify','/auth/signup/verified/')
+    print(signJWT(user.Email,1 if user.Remember_me else 30))
+    return user
+    
     
 
 @router.get('/signup/verified/{token}')
@@ -43,33 +41,29 @@ async def verify_email(token:str):
             Returns:
                 success: dict
     '''
-    try:
-        user=await decodeJWT(token)
-        print(user)
-        await update_verfied_user(user['Email'])
-        return {'body':'Email verified successfully'}
-    except Exception as e:
-        return {'error':str(e)}
+    user=await decodeJWT(token)
+    print(user)
+    await update_verfied_user(user['Email'])
+    return {'body':'Email verified successfully'}
+    
 
 
 @router.post('/login')
 async def login(user:UserLoginSchema)->any:
-    '''Authenticate user login time .if user not exist or password not match or not Verify, raise ValueError.
+    '''Authenticate user login time .if user not exist or password not match or not Verify, raise httpexception.
         if authentication is successful publish a message to email queue for verification and finally return updated access token.
             Parameters:
                 user: UserLoginSchema
                     UserLoginSchema is a class that inherits from BaseModel.
             
             Returns:
-                user: UserSchema if user is authenticated successfully else return error message.
+                user: UserSchema if user is authenticated successfully else raise error message.
     '''
-    try:
-        user=await authenticate_user(user)  
-        await publisher(user.dict(include={'UserName':True,'Email':True,'FirstName':True,'LastName':True}),'login','/auth/login')
-        signJWT(user.Email,1 if user.Remember_me else 30)
-        {'body':'User logged in successfully'}
-    except Exception as e:
-        return {'error':str(e)}
+    user=await authenticate_user(user)  
+    await publisher(user.dict(include={'UserName':True,'Email':True,'FirstName':True,'LastName':True}),'login','/auth/login')
+    signJWT(user.Email,1 if user.Remember_me else 30)
+    {'body':'User logged in successfully'}
+    
 
             
         
