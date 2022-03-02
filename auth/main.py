@@ -27,9 +27,9 @@ async def signup(user:UserSchema):
 
     '''
     print('-----------------------------')
-    await create_user(user)
+    insert_id=await create_user(user)
     await publisher(user.dict(include={'UserName':True,'Email':True,'FirstName':True,'LastName':True}),'verify','/auth/signup/verified/')
-    print(signJWT(user.Email,1 if user.Remember_me else 30))
+    print(signJWT(user.Email,f"{insert_id}",1 if user.Remember_me else 30))
     return user
     
     
@@ -46,14 +46,15 @@ async def verify_email(token:str):
                 success: dict
     '''
     user=await decodeJWT(token)
-    print(user)
+    user=await get_user(user['Email'])
     await update_verfied_user(user['Email'])
-    return {'body':'Email verified successfully'}
+    return signJWT(user['Email'],f"{user['_id']}",1 if user['Remember_me'] else 30)
+    # return {'body':'Email verified successfully'}
     
 
 
 @router.post('/login')
-async def login(user:UserLoginSchema)->any:
+async def login(user:UserLoginSchema)->dict:
     '''Authenticate user login time .if user not exist or password not match or not Verify, raise httpexception.
         if authentication is successful publish a message to email queue for verification and finally return updated access token.
             Parameters:
@@ -63,10 +64,10 @@ async def login(user:UserLoginSchema)->any:
             Returns:
                 user: UserSchema if user is authenticated successfully else raise error message.
     '''
-    user=await authenticate_user(user)  
+    user_database=await authenticate_user(user)  
     await publisher(user.dict(include={'UserName':True,'Email':True,'FirstName':True,'LastName':True}),'login','/auth/login')
-    signJWT(user.Email,1 if user.Remember_me else 30)
-    {'body':'User logged in successfully'}
+    return signJWT(user_database['Email'],f"{user_database['_id']}",1 if user_database["Remember_me"] else 30)
+    
     
 
 @router.get('/current_user')
@@ -74,7 +75,9 @@ async def current_user(email:str):
     user=await get_user(email)
     return json.loads(json_util.dumps(user['_id']))
 
-            
+@router.put('/update_user')
+async def update_user(user:UserSchema):
+    return {'body':'User updated successfully'}
         
 
 

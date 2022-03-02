@@ -91,11 +91,12 @@ async def create_user(user:UserSchema)->None:
         raise HTTPException(status_code=409, detail="Email alreday exist")
     else:
         user_data['Password']=get_password_hash(user_data['Password'])
-        await db.insert_one(user_data)
+        insert=await db.insert_one(user_data)
+        return insert.inserted_id
         
 
 
-async def authenticate_user(user:UserLoginSchema)->UserSchema:
+async def authenticate_user(user:UserLoginSchema)->dict:
     '''Authenticate user login time.if user not exist or password not match or not Verify, raise httpexception.
     
             Parameters:
@@ -119,7 +120,7 @@ async def authenticate_user(user:UserLoginSchema)->UserSchema:
 
     # update updated_date login time
     await update_login_user(user.Email)
-    return UserSchema(**user_data)
+    return user_data
 
 
 

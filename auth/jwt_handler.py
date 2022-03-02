@@ -11,12 +11,14 @@ JWT_SECRET= config('secret')
 JWT_ALGORITHM=config('algorithm')
 
 
-def token_response(token:str):
+def token_response(token:str,insert_id,email):
     return {
         'access_token':token,
+        'id':insert_id,
+        'email':email
     }
 
-def signJWT(Email:str,expires_day:int=1)->dict:
+def signJWT(Email:str,insert_id,expires_day:int=1)->dict:
     '''Return token with access_token as key . if user active RemmemberMe, set expiry time to 1 day else 30 day.
     
             Parameters:
@@ -33,7 +35,7 @@ def signJWT(Email:str,expires_day:int=1)->dict:
 
     # encode payload to JWT with secret and algorithm
     token = jwt.encode(payload,JWT_SECRET,algorithm=JWT_ALGORITHM)
-    return token_response(token)
+    return token_response(token,insert_id,Email)
 
 
 async def decodeJWT(token:str)->dict:
@@ -47,7 +49,7 @@ async def decodeJWT(token:str)->dict:
     '''
     try:
         decoded_token = jwt.decode(token,JWT_SECRET,algorithms=[JWT_ALGORITHM])
-        print(decoded_token)
+        
         # return email and expire time if exist this email in database and expire time is greater than current time
         return decoded_token if (decoded_token['expire']>time.time() and await get_user(decoded_token['Email'])) else False
     except:

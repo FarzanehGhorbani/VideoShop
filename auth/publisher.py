@@ -17,17 +17,17 @@ async def publisher(message,subject,url):
                 None
     '''
     # Perform connection
-    connection = await connect(
-        "amqp://user:example@192.168.63.26"
-    )
+    # connection = await connect(
+    #     "amqp://user:example@192.168.63.26"
+    # )
 
     message['subject']=subject
     message['url']='http://192.168.96.250:8000'+url
     print(json.dumps(message).encode('utf-8'))
 
-    # connection = await connect(
-    #     "amqp://guest:guest@localhost"
-    # )
+    connection = await connect(
+        "amqp://guest:guest@localhost"
+    )
    
     # Creating a channel
     channel = await connection.channel()
