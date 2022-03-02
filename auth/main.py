@@ -5,6 +5,10 @@ from .crud import *
 from .publisher import publisher
 from .jwt_handler import signJWT,decodeJWT
 from pydantic import ValidationError
+from .crud import get_user
+import json
+from bson import json_util
+
 # Create a router 
 router = APIRouter(
     prefix="/auth",
@@ -64,6 +68,11 @@ async def login(user:UserLoginSchema)->any:
     signJWT(user.Email,1 if user.Remember_me else 30)
     {'body':'User logged in successfully'}
     
+
+@router.get('/current_user')
+async def current_user(email:str):
+    user=await get_user(email)
+    return json.loads(json_util.dumps(user['_id']))
 
             
         
