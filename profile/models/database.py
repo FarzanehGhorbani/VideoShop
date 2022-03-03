@@ -1,5 +1,5 @@
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from bson.objectid import ObjectId as BsonObjectId
 
 class PydanticObjectId(BsonObjectId):
@@ -13,14 +13,15 @@ class PydanticObjectId(BsonObjectId):
             raise TypeError('ObjectId required')
         return str(v)
 
-
-class Employee(BaseModel):
+class UserDatabase(BaseModel):
     user_id:PydanticObjectId
     national_Code:str
-    address:str
-    address2:Optional[str]
+    address_id:PydanticObjectId
     picture_name:str
     birthdate:str
+    email:EmailStr
+
+class Employee(UserDatabase):
     store_id:PydanticObjectId
 
 
@@ -31,3 +32,6 @@ class Staff(Employee):
 
 class Owner(Employee):
     legal_number:str
+
+class Customer(UserDatabase):
+    ...

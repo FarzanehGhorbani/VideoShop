@@ -3,11 +3,15 @@ from pydantic import BaseModel, Field, validator
 from fastapi import HTTPException
 import datetime
 
+class AddressForm(BaseModel):
+    city:str=Field('Empty')
+    provience:str=Field('Empty')
+    address:str=Field('Empty')
 
 class UserEditForm(BaseModel):
     national_Code:str
-    address:str
-    address2:Optional[str]
+    address:AddressForm
+    address2:Optional[AddressForm]
     picture_name:str
     birthdate:str=Field(...,
                     description='Birthdate in format YYYY/MM/DD')
@@ -15,7 +19,7 @@ class UserEditForm(BaseModel):
 
     @validator('birthdate')
     def check_birthdate(cls,v):
-        format="%Y/%m/d"
+        format="%Y/%m/%d"
         try:
             datetime.datetime.strptime(v,format)
             return v
@@ -29,38 +33,13 @@ class UserEditForm(BaseModel):
             raise HTTPException(status_code=422,detail='national code format is not correct')      
         return v
 
-
-class EmployeeForm(BaseModel):
-    store_name:str
-    national_Code:str
-    address:str
-    address2:Optional[str]
-    picture_name:str
-    birthdate:str=Field(...,
-                    description='Birthdate in format YYYY/MM/DD')
-
-
-    @validator('birthdate')
-    def check_birthdate(cls,v):
-        try:
-            datetime.datetime.strptime(v, '%Y/%m/%d')
-            return v
-        except ValueError:
-            raise HTTPException(status_code=422,detail="This is the incorrect date string format. It should be YYYY-MM-DD")
-
-
-    @validator('national_Code')
-    def check_national_code(cls,v):
-        if not (v.isdigit() and len(v)==10):
-            raise HTTPException(status_code=422,detail='national code format is not correct')      
-        return v
-
-
-class StaffForm(EmployeeForm):
+class CustomerForm(UserEditForm):
     ...
+class StaffForm(UserEditForm):
+    store_name:str
+    
 
-
-class OwnerForm(EmployeeForm):
+class OwnerForm(StaffForm):
     legal_number:str
 
     @validator('legal_number')
@@ -69,3 +48,4 @@ class OwnerForm(EmployeeForm):
             raise HTTPException(status_code=422,detail='legal number format is not correct')
 
         return v
+

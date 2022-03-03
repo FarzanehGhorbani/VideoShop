@@ -1,22 +1,41 @@
 from fastapi import Request
 from . import router
-from ..models.Incom_moel import OwnerForm,StaffForm
-from ..app.controller import OwnerController,StaffController
+from ..models.Incom_moel import OwnerForm,StaffForm,AddressForm,CustomerForm
+from ..app.controller import OwnerController,StaffController,APICallController,CustomerController
+
 
 @router.post('/regsiterd/owner')
 async def owner_profile(request:Request,owner:OwnerForm):
     control:OwnerController = OwnerController()
     await control.check_exists_user(request.headers['id'])
-    owner=await control.create_user_type(owner,request.headers['id'])
+    owner=await control.create_user_type(owner,request.headers['id'],request.headers['email'])
     return owner
+
 
 @router.post('/regsiterd/staff')
 async def staff_profile(request:Request,staff:StaffForm):
     control:StaffController=StaffController()
     await control.check_exists_user(request.headers['id'])
-    staff=await control.create_user_type(staff,request.headers['id'])
+    staff=await control.create_user_type(staff,request.headers['id'],request.headers['email'])
+    return staff
+
+@router.post('/regsiterd/customer')
+async def staff_profile(request:Request,staff:CustomerForm):
+    control:CustomerController=CustomerController()
+    await control.check_exists_user(request.headers['id'])
+    staff=await control.create_user_type(staff,request.headers['id'],request.headers['email'])
     return staff
    
+
+@router.post('/address')
+@OwnerController.been_owner
+async def add_store(request:Request,address:AddressForm):
+    # save address
+    return address
+    
+
+
+
 
 # @router.post('/regsiterd/customer')
 # async def customer_profile(request:Request,owner:OwnerForm):
