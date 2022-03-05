@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, EmailStr
 from bson.objectid import ObjectId as BsonObjectId
@@ -20,6 +21,7 @@ class UserDatabase(BaseModel):
     picture_name:str
     birthdate:str
     email:EmailStr
+    last_update_date:datetime
 
 class Employee(UserDatabase):
     store_id:PydanticObjectId
@@ -32,6 +34,25 @@ class Staff(Employee):
 
 class Owner(Employee):
     legal_number:str
+    own_store_id:Optional[PydanticObjectId]
 
 class Customer(UserDatabase):
     ...
+
+class Address_Base(BaseModel):
+    city:str
+    provience:str
+    address:str
+    postal_code:str
+    phone:Optional[str]
+
+class Store(BaseModel):
+    address:Address_Base
+    manager_id:PydanticObjectId
+    last_update_date:datetime
+
+class Address_DataBase(BaseModel):
+    address:Address_Base
+    address2:Optional[Address_Base]
+    
+    last_update_date:datetime

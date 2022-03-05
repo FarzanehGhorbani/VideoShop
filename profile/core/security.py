@@ -79,6 +79,8 @@ class JWTBearer:
                     raise HTTPException(status_code=401, detail="Invalid authentication scheme.")
                 token=jwt_manager.decode(credentials)
                 current_user=await APICallController.get_current_user(token['Email'])
+                print(current_user['Email'])
+                print(request.headers['email'])
                 if not current_user['Email']==request.headers['email']:
                     raise HTTPException(status_code=401,detail='Invalid Token')
                 return True

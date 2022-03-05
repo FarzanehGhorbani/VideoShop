@@ -1,18 +1,25 @@
 
+from datetime import datetime
 from fastapi.exceptions import HTTPException
 from fastapi.encoders import jsonable_encoder
 from ..core.db import Mongo
-from ..models.database import Customer, Owner,PydanticObjectId,Staff
-from ..models.Incom_moel import CustomerForm, OwnerForm, StaffForm
+from ..models.database import Customer, Owner,PydanticObjectId,Staff, Store,Address_DataBase
+from ..models.Incom_moel import Address, AddressForm, CustomerForm, OwnerForm, StaffForm, StoreForm, UserEditForm
 from bson.objectid import ObjectId
 import aiohttp
 import json
 import functools
+# from 
 class APICallController:
     @staticmethod
-    async def get_id(data):
+    async def get_addrss_id(data):
         async with aiohttp.ClientSession() as session:
             async with session.post(f'http://192.168.63.69:8000/address',json=data) as resp:
+                return await resp.text()
+
+    async def add_store(data):
+        async with aiohttp.ClientSession() as session:
+            async with session.post(f'http://192.168.63.69:8000/add-store',json=data) as resp:
                 return await resp.text()
 
           
@@ -23,38 +30,129 @@ class APICallController:
                 user_info= await resp.text()
                 return json.loads(user_info)
 
+    @staticmethod
+    async def update_address(data):
+        async with aiohttp.ClientSession() as session:
+            async with session.put(f'http://192.168.63.69:8000/update-address',json=data) as resp:
+                return await resp.text()
+
+
+def check_id(key,value):
+    if key[-3:]=='_id' and value is not None:
+        return ObjectId(value)
+    if key[-5:]=='_date':
+        return datetime.strptime(value, "%Y-%m-%dT%H:%M:%S.%f")
+    return value
+
+
+class AddressController:
+    @staticmethod
+    async def add_address(address:AddressForm,store_name=None):
+        
+        address=Address_DataBase(**address.dict(),last_update_date=datetime.now())
+        address_id=await APICallController.get_addrss_id({
+            'address':jsonable_encoder(address),
+            'store':store_name
+        })
+        print(address_id)
+        address_id=json.loads(address_id)
+        return address_id
+
+    @staticmethod
+    async def add_store(address:StoreForm,owner_id):
+        store=jsonable_encoder(address)
+        store:Store=Store(**store,manager_id=PydanticObjectId(owner_id),last_update_date=datetime.now())
+        return await APICallController.add_store(jsonable_encoder(store))
+
+    
+    
+
+
+
 class UserController:
-    async def check_exists_user(user_id):
-        ...
+    def __init__(self,request) -> None:
+        self.user_id=request.headers['id']
+        self.user_email=request.headers['email']
+    
+    async def check_exists_user(self):
+        if (await Mongo.db[self.main_type].find_one({'user_id':ObjectId(self.user_id)}))is not None:
+            raise HTTPException(status_code=422,detail=f'You are alredy {self.main_type}')
+        if (await Mongo.db[self.except_type_one].find_one({'user_id':ObjectId(self.user_id)}))is not None:
+            raise HTTPException(status_code=422,detail=f'You are {self.except_type_one} and can\'t be {self.main_type}')
+        if (await Mongo.db[self.except_type_two].find_one({'user_id':ObjectId(self.user_id)}))is not None:
+            raise HTTPException(status_code=422,detail=f'You are {self.except_type_two} and can\'t be {self.main_type}')
+
+
+    async def save_user(self,user):
+        user_dict=jsonable_encoder(user)
+        
+        user_dict=dict(map(lambda x:(x[0],check_id(*x)),user_dict.items()))
+        
+        await Mongo.db[self.main_type].insert_one(user_dict)
+
+
+    async def edit_profile(self,user:UserEditForm):
+        user=jsonable_encoder(user)
+        collection_list=await Mongo().db.list_collection_names()
+        user=dict(filter(lambda x:x[1] is not None,user.items()))
+       
+        
+
+        for collection_name in collection_list:
+            result=await Mongo.db[collection_name].update_one({'email':self.user_email},{'$set':user})
+            if result.matched_count>0:
+                collection=collection_name
+                break
+        
+        address=user['address']
+        address_id=await Mongo.db[collection].find_one({'email':self.user_email})
+        address['id']=str(address_id['address_id'])
+        await APICallController.update_address(address)
+        return 'Ok'
 
     async def create_user_type(owner):
         ...
 
 class OwnerController(UserController):
-    @staticmethod
-    async def check_exists_user(user_id):
-        if (await Mongo.db['owner'].find_one({'user_id':ObjectId(user_id)}))is not None:
-            raise HTTPException(status_code=422,detail='You are alredy owner')
-        if (await Mongo.db['staff'].find_one({'user_id':ObjectId(user_id)}))is not None:
-            raise HTTPException(status_code=422,detail='You are staff and can\'t be owner')
-        if (await Mongo.db['customer'].find_one({'user_id':ObjectId(user_id)}))is not None:
-            raise HTTPException(status_code=422,detail='You are customer and can\'t be owner')
+    def __init__(self, request) -> None:
+        super().__init__(request)
+        self.main_type='owner'
+        self.except_type_one='customer'
+        self.except_type_two='staff'
+    
 
-    @staticmethod
-    async def create_user_type(owner:OwnerForm,user_id:str,user_email:str)->Owner:
+    async def get_store_id(self):
+        store_id=await Mongo.db[self.main_type].find_one({'user_id':ObjectId(self.user_id)},{'_id':0,'store_id':1})
+        return store_id['store_id']
+
+    async def get_owner_staff(self):
+        store_id=await self.get_store_id()
+        staffs=await Mongo.db['staff'].find_many({"$or":[{'store_id':ObjectId(store_id)},{'own_store_id':ObjectId(store_id)}]},{'_id':0,'email':1})
+        print(staffs)
+        return staffs
+
+    async def delete_staff(self,staff_id):
+        store_id=await self.get_store_id()
+        await Mongo.db['staff'].delete_one({"$or":[{'staff_id':ObjectId(staff_id),'store_id':ObjectId(store_id)},{'staff_id':ObjectId(staff_id),'own_store_id':ObjectId(store_id)}]})
+
+    async def get_owner_staff(self):
         
-        address_id=await APICallController.get_id({
-            'address':jsonable_encoder(owner.address),
-            'store':owner.store_name
-        })
-        address_id=json.loads(address_id)
-        print(address_id)
-        owner:Owner=Owner(**owner.dict(),user_id=PydanticObjectId(user_id),email=user_email,address_id=PydanticObjectId(address_id['address_id']),store_id=PydanticObjectId(address_id['store_id']))
-        owner_dict=jsonable_encoder(owner)
-        owner_dict['user_id']=ObjectId(owner.user_id)
-        owner_dict['store_id']=ObjectId(owner.store_id)
-        owner_dict['address_id']=ObjectId(owner.address_id)
-        await Mongo.db['owner'].insert_one(owner_dict)
+        staff=await Mongo.db['staff'].find_one({'_id':self.user_id})
+
+    async def create_user_type(self,owner_form:OwnerForm)->Owner:
+        address_id=await AddressController.add_address(store_name=owner_form.store_name,address=owner_form.address)
+        
+        
+        if address_id['store_id']:
+            owner:Owner=Owner(**owner_form.dict(),user_id=PydanticObjectId(self.user_id),email=self.user_email,address_id=PydanticObjectId(address_id['address_id']),store_id=PydanticObjectId(address_id['store_id']),last_update_date=datetime.now())
+        else :
+            raise HTTPException(status_code=422,detail='This storee is not exist')
+
+        if owner_form.own_store is not None:
+                store=await self.add_store(owner_form.own_store)
+                owner.own_store_id=store['store_id']
+        
+        await self.save_user(owner)
         return owner
 
     @staticmethod
@@ -66,66 +164,72 @@ class OwnerController(UserController):
                 return await func(**kwargs)
             else:
                 raise HTTPException(status_code=401,detail='You are not owner')
-            
+        
         return wrapper
 
-class StaffController(UserController):
-    @staticmethod
-    async def check_exists_user(user_id):
-        if (await Mongo.db['staff'].find_one({'user_id':ObjectId(user_id)}))is not None:
-            raise HTTPException(status_code=422,detail='You are alredy staff')
-        if (await Mongo.db['owner'].find_one({'user_id':ObjectId(user_id)}))is not None:
-            raise HTTPException(status_code=422,detail='You are owner and can\'t be staff')
-        if (await Mongo.db['customer'].find_one({'user_id':ObjectId(user_id)}))is not None:
-            raise HTTPException(status_code=422,detail='You are customer and can\'t be staff')
+    async def check_own_store_exists(self):
+        print('----------------------check_own_store_exists----------------------')
+        if Mongo.db[self.main_type].find_one({'_id':self.user_id,'own_store_id':None}) is not None:
+            return True
+        raise HTTPException(status_code=422,detail='you have already store')
 
-    @staticmethod
-    async def create_user_type(staff:StaffForm,user_id:str,user_email:str)->Staff:
+    async def add_store(self,store:StoreForm):
+        store_info=await AddressController.add_store(store,self.user_id)
+        store_info=json.loads(store_info)
+        return store_info
+
+    async def create_store(self,address):
+        store_id=self.add_store(address)
+        await Mongo.db[self.main_type].update_one({'_id':self.user_id},{"$set":{"own_store_id":store_id}})
+
         
-        address_id=await APICallController.get_id({
-            'address':jsonable_encoder(staff.address),
-            'store':staff.store_name
-        })
-        address_id=json.loads(address_id)
-        staff:Staff=Staff(**staff.dict(),user_id=PydanticObjectId(user_id),email=user_email,address_id=PydanticObjectId(address_id['address_id']),store_id=PydanticObjectId(address_id['store_id']),staff_id=PydanticObjectId(ObjectId()))
-        staff_dict=jsonable_encoder(staff)
-        staff_dict['user_id']=ObjectId(staff.user_id)
-        staff_dict['store_id']=ObjectId(staff.store_id)
-        staff_dict['address_id']=ObjectId(staff.address_id)
-        staff_dict['staff_id']=ObjectId(staff.staff_id)
-        await Mongo.db['staff'].insert_one(staff_dict)
+
+class StaffController(UserController):
+    def __init__(self,request) -> None:
+        super().__init__(request)
+        self.main_type='staff'
+        self.except_type_one='owner'
+        self.except_type_two='customer'
+  
+    async def create_user_type(self,staff:StaffForm)->Staff:
+        address_id=await AddressController.add_address(store_name=staff.store_name,address=staff.address)
+        
+        
+        if address_id['store_id']:
+            staff:Staff=Staff(**staff.dict(),staff_id=PydanticObjectId(ObjectId()),user_id=PydanticObjectId(self.user_id),email=self.user_email,address_id=PydanticObjectId(address_id['address_id']),store_id=PydanticObjectId(address_id['store_id']),last_update_date=datetime.now())
+        else :
+            raise HTTPException(status_code=422,detail='This storee is not exist')
+
+      
+        
+        await self.save_user(staff)
+
         return staff
 
 
-
-
 class CustomerController(UserController):
-    @staticmethod
-    async def check_exists_user(user_id):
-        if (await Mongo.db['customer'].find_one({'user_id':ObjectId(user_id)}))is not None:
-            raise HTTPException(status_code=422,detail='You are alredy customer')
-        if (await Mongo.db['owner'].find_one({'user_id':ObjectId(user_id)}))is not None:
-            raise HTTPException(status_code=422,detail='You are owner and can\'t be customer')
-        if (await Mongo.db['staff'].find_one({'user_id':ObjectId(user_id)}))is not None:
-            raise HTTPException(status_code=422,detail='You are staff and can\'t be customer')
+    def __init__(self,request) -> None:
+        super().__init__(request)
+        self.main_type='customer'
+        self.except_type_one='owner'
+        self.except_type_two='staff'
 
-    @staticmethod
-    async def create_user_type(customer:CustomerForm,user_id:str,user_email:str)->Customer:
+    
+    async def create_user_type(self,customer:CustomerForm)->Customer:
+        address_id=await AddressController.add_address(address=customer.address)
         
-        address_id=await APICallController.get_id({
-            'address':jsonable_encoder(customer.address)
-        })
-        address_id=json.loads(address_id)
-        customer:Customer=Customer(**customer.dict(),user_id=PydanticObjectId(user_id),email=user_email,address_id=PydanticObjectId(address_id['address_id']),store_id=PydanticObjectId(address_id['store_id']),staff_id=PydanticObjectId(ObjectId()))
-        customer_dict=jsonable_encoder(customer)
-        customer_dict['user_id']=ObjectId(customer.user_id)
-        customer_dict['address_id']=ObjectId(customer.address_id)
-        await Mongo.db['customer'].insert_one(customer_dict)
+        
+        customer:Customer=Customer(**customer.dict(),user_id=PydanticObjectId(self.user_id),email=self.user_email,address_id=PydanticObjectId(address_id['address_id']),last_update_date=datetime.now())
+        
+        
+        await self.save_user(customer)
+
         return customer
 
 
 
-
+    
+        
 
 
 

@@ -1,78 +1,68 @@
 from fastapi import Request
 from . import router
-from ..models.Incom_moel import OwnerForm,StaffForm,AddressForm,CustomerForm
-from ..app.controller import OwnerController,StaffController,APICallController,CustomerController
+from ..models.Incom_moel import OwnerForm,StaffForm,StoreForm,CustomerForm, UserEditForm
+from ..app.controller import AddressController, OwnerController,StaffController,APICallController,CustomerController, UserController
 
 
 @router.post('/regsiterd/owner')
 async def owner_profile(request:Request,owner:OwnerForm):
-    control:OwnerController = OwnerController()
-    await control.check_exists_user(request.headers['id'])
-    owner=await control.create_user_type(owner,request.headers['id'],request.headers['email'])
+    control:OwnerController = OwnerController(request)
+    await control.check_exists_user()
+    owner=await control.create_user_type(owner)
     return owner
 
 
 @router.post('/regsiterd/staff')
 async def staff_profile(request:Request,staff:StaffForm):
-    control:StaffController=StaffController()
-    await control.check_exists_user(request.headers['id'])
-    staff=await control.create_user_type(staff,request.headers['id'],request.headers['email'])
+    control:StaffController=StaffController(request)
+    await control.check_exists_user()
+    staff=await control.create_user_type(staff)
     return staff
 
 @router.post('/regsiterd/customer')
-async def staff_profile(request:Request,staff:CustomerForm):
-    control:CustomerController=CustomerController()
-    await control.check_exists_user(request.headers['id'])
-    staff=await control.create_user_type(staff,request.headers['id'],request.headers['email'])
-    return staff
-   
-
-@router.post('/address')
-@OwnerController.been_owner
-async def add_store(request:Request,address:AddressForm):
-    # save address
-    return address
+async def customer_profile(request:Request,customer:CustomerForm):
+    control:CustomerController=CustomerController(request)
+    await control.check_exists_user()
+    customer=await control.create_user_type(customer)
+    return customer
+    
     
 
+@router.put('/edit')
+async def edit_profile(request:Request,user:UserEditForm):
+    control:UserController=UserController(request)
+    user=await control.edit_profile(user)
+    return user
 
 
+@router.delete('/delete-staff')
+@OwnerController.been_owner
+async def delete_staff(request:Request,staff_id:str):
+    control:OwnerController=OwnerController(request)
+    await control.delete_staff(staff_id)
+    return f'{staff_id} deleted'
 
-# @router.post('/regsiterd/customer')
-# async def customer_profile(request:Request,owner:OwnerForm):
-#     control:OwnerController = OwnerController()
-#     await control.check_exists_user(request.headers['id'])
-#     owner=await control.create_user_type(owner,request.headers['id'])
-#     return owner
+@router.get('/get-staff')
+@OwnerController.been_owner
+async def get_staff(request:Request):
+    control:OwnerController=OwnerController(request)
+    staffs=await control.get_owner_staff()
+    return staffs
 
-# @router.post("/change/password/{token}")
-# async def change_password(
-#     passwords: ChangePasswordModel, token: dict = Depends(jwt_manager.decode)
-# ):
-#     control: ChangePasswordController = ChangePasswordController()
-#     user = await control.get_user(email=token["email"])
-#     if control.check_verification(user):
-#         if bcrypt.verify(passwords.password, user.password):
-#             await control.set_password(user, passwords.password)
-#             await control.send_message("Your password changed.")
-#         else:
-#             raise HTTPException(400, "password is wrong")
-#         return {"message": "Good Luck"}
-
-
-# @router.post("/reset/password/")
-# async def get_email(email: EmailStr = Body(...)):
-#     control: ResetPasswordController = ResetPasswordController()
-#     user = await control.get_user(email=email)
-#     await control.send_message(f"your token: {user.email}")
-#     return {"message": "We have sent an email to you."}
+# @router.post('/address')
+# @OwnerController.been_owner
+# async def add_store(request:Request,address:StoreForm):
+#     print('------------add store--------------')
+#     return address
+    # control:OwnerController=OwnerController(request)
+    # await control.check_own_store_exists()
+    # # await control.create_store(address)  
+    # # return {'data':'store created'} 
 
 
-# @router.put("/reset/password/{token}")
-# async def get_new_password(
-#     passwords: ResetPasswordModel, token: dict = Depends(jwt_manager.decode)
-# ):
-#     control: ResetPasswordController = ResetPasswordController()
-#     user = await control.get_user(token["email"])
-#     await control.set_password(user, passwords.password)
-#     await control.send_message("Your password reseted")
-#     return {"message": "password is reseted."}
+# @router.get('/owner-staff')
+# @OwnerController.been_owner
+# async def get_owner_staff(request:Request):
+#     control:OwnerController=OwnerController(request)
+#     stafs=await control.get_owner_staff()
+
