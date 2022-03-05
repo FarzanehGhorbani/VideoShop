@@ -3,15 +3,21 @@ from pydantic import BaseModel, Field, validator
 from fastapi import HTTPException
 import datetime
 
-class AddressForm(BaseModel):
+class Address(BaseModel):
     city:str=Field('Empty')
     provience:str=Field('Empty')
     address:str=Field('Empty')
+    postal_code:str
+
+class AddressForm(BaseModel):
+    address:Address
+    address2:Optional[Address]
+    phone:str
+    last_update:datetime.datetime
 
 class UserEditForm(BaseModel):
     national_Code:str
     address:AddressForm
-    address2:Optional[AddressForm]
     picture_name:str
     birthdate:str=Field(...,
                     description='Birthdate in format YYYY/MM/DD')

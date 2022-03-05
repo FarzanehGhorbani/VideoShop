@@ -44,10 +44,7 @@ class OwnerController(UserController):
     async def create_user_type(owner:OwnerForm,user_id:str,user_email:str)->Owner:
         
         address_id=await APICallController.get_id({
-            'address':[
-                jsonable_encoder(owner.address),
-                jsonable_encoder(owner.address2)
-            ],
+            'address':jsonable_encoder(owner.address),
             'store':owner.store_name
         })
         address_id=json.loads(address_id)
@@ -86,10 +83,7 @@ class StaffController(UserController):
     async def create_user_type(staff:StaffForm,user_id:str,user_email:str)->Staff:
         
         address_id=await APICallController.get_id({
-            'address':[
-                jsonable_encoder(staff.address),
-                jsonable_encoder(staff.address2)
-            ],
+            'address':jsonable_encoder(staff.address),
             'store':staff.store_name
         })
         address_id=json.loads(address_id)
@@ -119,10 +113,7 @@ class CustomerController(UserController):
     async def create_user_type(customer:CustomerForm,user_id:str,user_email:str)->Customer:
         
         address_id=await APICallController.get_id({
-            'address':[
-                jsonable_encoder(customer.address),
-                jsonable_encoder(customer.address2)
-            ],
+            'address':jsonable_encoder(customer.address)
         })
         address_id=json.loads(address_id)
         customer:Customer=Customer(**customer.dict(),user_id=PydanticObjectId(user_id),email=user_email,address_id=PydanticObjectId(address_id['address_id']),store_id=PydanticObjectId(address_id['store_id']),staff_id=PydanticObjectId(ObjectId()))
