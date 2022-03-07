@@ -1,3 +1,4 @@
+from lib2to3.pgen2.tokenize import TokenError
 from typing import Any
 from jwt import decode
 from jwt import encode
@@ -7,8 +8,8 @@ from jwt.exceptions import InvalidIssuedAtError
 from jwt.exceptions import InvalidKeyError
 from jwt.exceptions import InvalidTokenError
 from fastapi import HTTPException,Request
-from ..app.controller import APICallController
-import functools
+from fastapi.responses import JSONResponse
+from ..models.Incom_moel import TokenModel
 # from 
 
 class JWT:
@@ -67,6 +68,7 @@ class JWT:
             raise HTTPException(401, detail=err)
 
 jwt_manager: JWT = JWT(secret="09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7", algorithm="HS256")
+
 class JWTBearer:
     def __init__(self):
         ...
@@ -78,27 +80,28 @@ class JWTBearer:
                 if not scheme == "Bearer":
                     raise HTTPException(status_code=401, detail="Invalid authentication scheme.")
                 token=jwt_manager.decode(credentials)
-                current_user=await APICallController.get_current_user(token['Email'])
-                print(current_user['Email'])
-                print(request.headers['email'])
-                if not current_user['Email']==request.headers['email']:
-                    raise HTTPException(status_code=401,detail='Invalid Token')
+                request.state.user=TokenModel(**token)
+                if not token['is_login'] or not token['is_verifield'] or not token['is_authenticated']:
+                    raise HTTPException(status_code=401, detail="Invalid authentication token.")
+                
                 return True
             else:
-                raise HTTPException(status_code=403, detail="Invalid authorization code.")
+                raise HTTPException(status_code=401, detail="Invalid authorization code.")
         except:
-            raise HTTPException(status_code=403, detail="Invalid authorization code.")
+            raise HTTPException(status_code=401, detail="Invalid authorization code.")
        
 
     
 
 class MyMiddleware:
     async def __call__(self, request: Request, call_next):
-       
-        await JWTBearer()(request)
-        response = await call_next(request)
-        print("I've been called!")
-        return response
+        try:
+            await JWTBearer()(request)
+            response = await call_next(request)
+            return response
+        except HTTPException as err:
+            return JSONResponse(status_code=err.status_code, content=err.detail)
+        
 
 
         

@@ -1,8 +1,8 @@
 from fastapi import Request
 from . import router
-from ..models.Incom_moel import OwnerForm,StaffForm,StoreForm,CustomerForm, UserEditForm
+from ..models.Incom_moel import StaffId,OwnerForm,StaffForm,StoreForm,CustomerForm, UserEditForm
 from ..app.controller import AddressController, OwnerController,StaffController,APICallController,CustomerController, UserController
-
+from ..models.database import PydanticObjectId
 
 @router.post('/regsiterd/owner')
 async def owner_profile(request:Request,owner:OwnerForm):
@@ -28,19 +28,20 @@ async def customer_profile(request:Request,customer:CustomerForm):
     
     
 
-@router.put('/edit')
-async def edit_profile(request:Request,user:UserEditForm):
-    control:UserController=UserController(request)
-    user=await control.edit_profile(user)
-    return user
+# @router.put('/edit')
+# async def edit_profile(request:Request,user:UserEditForm):
+#     control:UserController=UserController(request)
+#     user=await control.edit_profile(user)
+#     return user
 
 
 @router.delete('/delete-staff')
 @OwnerController.been_owner
-async def delete_staff(request:Request,staff_id:str):
+async def delete_staff(request:Request,staff_id:StaffId):
     control:OwnerController=OwnerController(request)
     await control.delete_staff(staff_id)
-    return f'{staff_id} deleted'
+    return f'{staff_id.staff_id} deleted'
+    
 
 @router.get('/get-staff')
 @OwnerController.been_owner

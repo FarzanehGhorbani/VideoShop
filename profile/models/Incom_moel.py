@@ -1,9 +1,20 @@
 from typing import Optional
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, EmailStr, Field, validator
 from fastapi import HTTPException
 import datetime
+from .database import PydanticObjectId,BsonObjectId
+from bson.objectid import ObjectId
+import orjson
 
 
+
+class StaffId(BaseModel):
+    staff_id: PydanticObjectId = None
+
+    class Config:
+        json_encoders = {
+            PydanticObjectId: lambda v: str(v),
+        }
 
 class Address(BaseModel):
     city:str=Field('Empty')
@@ -18,8 +29,8 @@ class AddressForm(BaseModel):
     
 
 class StoreForm(BaseModel):
+    store_name:str
     address:Address
-
 
 
 class UserEditForm(BaseModel):
@@ -87,3 +98,12 @@ class OwnerForm(StaffForm):
 
         return v
 
+
+
+class TokenModel(BaseModel):
+    is_login:bool
+    is_verifield:bool
+    is_authenticated:bool
+    exp:float
+    expire_day:int
+    Email:EmailStr
